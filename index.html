@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="canonical" href="https://pierrecochart.github.io/striking-distance-keyword-analyzer/">
+    <title>Striking Distance Keyword Analyzer — Find Quick-Win SEO Keywords | Pierre Cochart</title>
+    <meta name="description" content="Upload a Google Search Console export to find keywords ranking on page 2-3 with high impressions — the fastest wins in SEO. Forecasts traffic uplift and exports a prioritised hit list. Free and client-side.">
+    <meta property="og:title" content="Striking Distance Keyword Analyzer">
+    <meta property="og:description" content="Find and forecast high-ROI 'striking distance' keywords from a GSC export. Free and client-side.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pierrecochart.github.io/striking-distance-keyword-analyzer/">
+    <meta property="og:image" content="https://placehold.co/1200x630/0F6E8C/FAFAF7?font=roboto&text=Striking+Distance+Analyzer">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://placehold.co/1200x630/0F6E8C/FAFAF7?font=roboto&text=Striking+Distance+Analyzer">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        paper: '#FAFAF7',
+                        panel: '#EFEEE7',
+                        ink: '#191D22',
+                        'ink-soft': '#565C64',
+                        line: '#DAD7CC',
+                        primary: { DEFAULT: '#0F6E8C', dark: '#0B5570', tint: '#DCEAEE' },
+                        amberbrand: { DEFAULT: '#E8A33D', tint: '#FBF1E0', dark: '#8A5A14', border: '#F0D9AE' },
+                        success: { DEFAULT: '#2F8558', tint: '#E5F1EA', border: '#BFDFCB' }
+                    },
+                    fontFamily: {
+                        display: ['Space Grotesk', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['IBM Plex Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .table-container { max-height: 65vh; overflow-y: auto; }
+        thead th { position: sticky; top: 0; background-color: #FAFAF7; z-index: 10; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+
+        /* --- Site header --- */
+        .site-header { background: #FAFAF7; border-bottom: 1px solid #DAD7CC; position: sticky; top: 0; z-index: 100; font-family: 'Inter', sans-serif; }
+        .site-header__ruler { height: 4px; background-image: repeating-linear-gradient(90deg, #0F6E8C 0 1px, transparent 1px 12px); opacity: 0.5; }
+        .site-header__inner { max-width: 1140px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+        .site-header__brand { text-decoration: none; color: #191D22; line-height: 1.1; }
+        .site-header__eyebrow { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.14em; color: #0F6E8C; text-transform: uppercase; margin-bottom: 2px; }
+        .site-header__wordmark { display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.15rem; color: #191D22; }
+        .nav-toggle { display: none; flex-direction: column; gap: 4px; background: none; border: 1px solid #DAD7CC; border-radius: 4px; cursor: pointer; padding: 8px 10px; }
+        .nav-toggle span { width: 18px; height: 2px; background: #191D22; display: block; }
+        .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+        .site-nav__list { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
+        .site-nav__item { position: relative; }
+        .site-nav__link { background: none; border: none; font: inherit; font-family: 'Inter', sans-serif; font-weight: 500; font-size: 0.92rem; cursor: pointer; padding: 9px 12px; color: #191D22; text-decoration: none; display: inline-block; border-radius: 4px; }
+        .site-nav__link:hover, .site-nav__link:focus { color: #0F6E8C; background: #EFEEE7; }
+        .dropdown { list-style: none; margin: 0; padding: 6px; position: absolute; top: 100%; left: 0; background: #FAFAF7; border: 1px solid #DAD7CC; border-radius: 6px; box-shadow: 0 10px 28px rgba(25,29,34,0.10); min-width: 250px; opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .15s ease, transform .15s ease, visibility .15s; }
+        .has-dropdown:hover .dropdown, .has-dropdown:focus-within .dropdown { opacity: 1; visibility: visible; transform: translateY(0); }
+        .dropdown li a { display: block; padding: 8px 10px; color: #191D22; text-decoration: none; border-radius: 4px; font-size: 0.88rem; border-left: 2px solid transparent; }
+        .dropdown li a:hover, .dropdown li a:focus { background: #EFEEE7; border-left-color: #0F6E8C; color: #0B5570; }
+        @media (max-width: 860px) {
+          .nav-toggle { display: flex; }
+          .site-nav { display: none; width: 100%; order: 3; }
+          .site-nav.is-open { display: block; }
+          .site-nav__list { flex-direction: column; gap: 0; }
+          .site-nav__item { width: 100%; }
+          .dropdown { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; border: none; display: none; padding-left: 10px; }
+          .has-dropdown.is-open .dropdown { display: block; }
+          .site-header__inner { flex-wrap: wrap; }
+        }
+
+        /* --- SEO content block --- */
+        .tool-content { max-width: 780px; margin: 64px auto 0; padding: 0 20px; font-family: 'Inter', sans-serif; color: #191D22; line-height: 1.65; }
+        .tool-content h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; margin: 40px 0 14px; color: #191D22; }
+        .tool-content p { font-size: 0.98rem; color: #565C64; margin: 0 0 14px; }
+        .faq-item { position: relative; border: 1px solid #DAD7CC; border-radius: 6px; padding: 4px 16px; margin-bottom: 10px; background: #FAFAF7; }
+        .faq-item::before, .faq-item::after { content: ""; position: absolute; width: 10px; height: 10px; border-color: #0F6E8C; border-style: solid; opacity: 0.6; }
+        .faq-item::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .faq-item::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+        .faq-item summary { cursor: pointer; font-weight: 600; padding: 14px 0; font-size: 0.96rem; list-style: none; }
+        .faq-item summary::-webkit-details-marker { display: none; }
+        .faq-item summary::after { content: "+"; float: right; font-family: 'IBM Plex Mono', monospace; color: #0F6E8C; }
+        .faq-item[open] summary::after { content: "–"; }
+        .faq-item p { padding-bottom: 14px; margin: 0; }
+        .related-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+        .related-tools__card { position: relative; display: block; border: 1px solid #DAD7CC; border-radius: 6px; padding: 18px; text-decoration: none; background: #FAFAF7; transition: border-color .15s ease; }
+        .related-tools__card:hover { border-color: #0F6E8C; }
+        .related-tools__card::before, .related-tools__card::after { content: ""; position: absolute; width: 10px; height: 10px; border-color: #0F6E8C; border-style: solid; opacity: 0.6; }
+        .related-tools__card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .related-tools__card::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+        .related-tools__eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: #0F6E8C; margin: 0 0 6px; }
+        .related-tools__name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.98rem; color: #191D22; margin: 0 0 4px; }
+        .related-tools__desc { font-size: 0.85rem; color: #565C64; margin: 0; }
+        @media (max-width: 720px) { .related-tools { grid-template-columns: 1fr; } }
+
+        /* --- Buy Me a Coffee card --- */
+        .bmc-card { margin: 32px auto 0; max-width: 480px; text-align: center; border-top: 1px solid #DAD7CC; padding-top: 24px; }
+        .bmc-card__icon { font-size: 1.4rem; margin-bottom: 6px; }
+        .bmc-card__heading { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.98rem; color: #191D22; margin: 0 0 6px; }
+        .bmc-card__text { font-size: 12.5px; color: #565C64; margin-bottom: 14px; line-height: 1.5; }
+        .bmc-card__button { display: inline-flex; align-items: center; gap: 8px; background: #0F6E8C; color: #fff; text-decoration: none; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; padding: 10px 18px; border-radius: 6px; transition: background .15s ease; }
+        .bmc-card__button:hover { background: #0B5570; }
+        .bmc-card__button svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        /* --- Site footer --- */
+        .site-footer { background: #EFEEE7; border-top: 1px solid #DAD7CC; margin-top: 60px; font-family: 'Inter', sans-serif; }
+        .site-footer__cta { border-bottom: 1px solid #DAD7CC; }
+        .site-footer__cta-inner { max-width: 1140px; margin: 0 auto; padding: 36px 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+        .site-footer__cta-text { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: #0F6E8C; margin: 0 0 4px; }
+        .site-footer__cta-heading { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.2rem; color: #191D22; margin: 0; }
+        .site-footer__cta-link { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.9rem; color: #fff; background: #0F6E8C; text-decoration: none; padding: 12px 20px; border-radius: 6px; white-space: nowrap; transition: background .15s ease; }
+        .site-footer__cta-link:hover { background: #0B5570; }
+        .site-footer__inner { max-width: 1140px; margin: 0 auto; padding: 40px 20px 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .site-footer__col h3 { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #565C64; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid #DAD7CC; }
+        .site-footer__col ul { list-style: none; margin: 0; padding: 0; }
+        .site-footer__col li { margin-bottom: 8px; }
+        .site-footer__col a { color: #191D22; text-decoration: none; font-size: 0.9rem; }
+        .site-footer__col a:hover { color: #0F6E8C; text-decoration: underline; }
+        .site-footer__bottom { max-width: 1140px; margin: 0 auto; padding: 18px 20px 30px; border-top: 1px solid #DAD7CC; font-size: 0.82rem; color: #565C64; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .site-footer__bottom a { color: #565C64; }
+        .site-footer__bottom a:hover { color: #0F6E8C; }
+        @media (max-width: 860px) { .site-footer__inner { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body class="bg-panel text-ink font-sans p-6 md:p-10 min-h-screen">
+
+<header class="site-header -m-6 md:-m-10 mb-6 md:mb-10">
+  <div class="site-header__ruler"></div>
+  <div class="site-header__inner">
+    <a class="site-header__brand" href="https://pierrecochart.github.io/">
+      <span class="site-header__eyebrow">Free Web Toolkit</span>
+      <span class="site-header__wordmark">Pierre Cochart</span>
+    </a>
+
+    <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="siteNav">
+      <span></span><span></span><span></span>
+      <span class="sr-only">Menu</span>
+    </button>
+
+    <nav class="site-nav" id="siteNav">
+      <ul class="site-nav__list">
+        <li class="site-nav__item has-dropdown">
+          <button class="site-nav__link" aria-expanded="false">Image &amp; Media</button>
+          <ul class="dropdown">
+            <li><a href="https://pierrecochart.github.io/image-cropper/">Bulk Image Cropper</a></li>
+            <li><a href="https://pierrecochart.github.io/image-background-remover/">Image Background Remover</a></li>
+            <li><a href="https://pierrecochart.github.io/color-palette-generator/">Color Palette Generator</a></li>
+            <li><a href="https://pierrecochart.github.io/duotone-generator/">Duotone Generator</a></li>
+            <li><a href="https://pierrecochart.github.io/image-dithering-tool/">Image Dithering Tool</a></li>
+            <li><a href="https://pierrecochart.github.io/advanced-image-cropping-tool/">Advanced Image Cropper</a></li>
+            <li><a href="https://pierrecochart.github.io/image-to-webp-converter/">Image to WebP Converter</a></li>
+            <li><a href="https://pierrecochart.github.io/quickfav-favicon-maker/">QuickFav Favicon Maker</a></li>
+            <li><a href="https://pierrecochart.github.io/svg-cleaner/">SVG Cleaner</a></li>
+            <li><a href="https://pierrecochart.github.io/code-screenshot-image-creator/">Code Screenshot Generator</a></li>
+          </ul>
+        </li>
+        <li class="site-nav__item has-dropdown">
+          <button class="site-nav__link" aria-expanded="false">SEO &amp; Content</button>
+          <ul class="dropdown">
+            <li><a href="https://pierrecochart.github.io/canonical-generating-tool/">Canonical Generator</a></li>
+            <li><a href="https://pierrecochart.github.io/useful-links-builder/">Useful Links Builder</a></li>
+            <li><a href="https://pierrecochart.github.io/hreflang-generator-tool/">Hreflang Generator</a></li>
+            <li><a href="https://pierrecochart.github.io/website-migration-bulk-redirect-tool/">Bulk Redirect Mapper</a></li>
+            <li><a href="https://pierrecochart.github.io/google-dork-search-operator-tool/">Google Dork Builder</a></li>
+            <li><a href="https://pierrecochart.github.io/keyword-mixer-tool/">Keyword Mixer</a></li>
+            <li><a href="https://pierrecochart.github.io/SERP-Snippet-Viewer-Optimiser/">SERP Simulator</a></li>
+            <li><a href="https://pierrecochart.github.io/seo-bulk-header-audit-tool/">SEO Header Audit</a></li>
+            <li><a href="https://pierrecochart.github.io/faq-generator/">FAQ &amp; Schema Generator</a></li>
+            <li><a href="https://pierrecochart.github.io/internal-link-weaver/">Internal Link Weaver</a></li>
+            <li><a href="https://pierrecochart.github.io/word-character-counter-read-time/">Word &amp; Character Counter</a></li>
+            <li><a href="https://pierrecochart.github.io/ai-blog-summarizer-button-generator/">AI Blog Summarizer</a></li>
+            <li><a href="https://pierrecochart.github.io/striking-distance-keyword-analyzer/">Striking Distance Analyzer</a></li>
+          </ul>
+        </li>
+        <li class="site-nav__item has-dropdown">
+          <button class="site-nav__link" aria-expanded="false">PPC &amp; Analytics</button>
+          <ul class="dropdown">
+            <li><a href="https://pierrecochart.github.io/google-adwords-campaign-architect-tool/">AdWords Architect</a></li>
+            <li><a href="https://pierrecochart.github.io/roas-modeller/">ROAS Modeller</a></li>
+            <li><a href="https://pierrecochart.github.io/statistical-significance-calculator/">Significance Calculator</a></li>
+          </ul>
+        </li>
+        <li class="site-nav__item has-dropdown">
+          <button class="site-nav__link" aria-expanded="false">Development</button>
+          <ul class="dropdown">
+            <li><a href="https://pierrecochart.github.io/document-html-link-remover/">Link Remover Tool</a></li>
+            <li><a href="https://pierrecochart.github.io/word-doc-content-sanitizer/">Word Content Sanitizer</a></li>
+            <li><a href="https://pierrecochart.github.io/github-website-builder/">GitHub Website Builder</a></li>
+            <li><a href="https://pierrecochart.github.io/html-editor/">HTML Editor</a></li>
+            <li><a href="https://pierrecochart.github.io/app-store-event-previewer/">App Store Event Previewer</a></li>
+          </ul>
+        </li>
+        <li class="site-nav__item">
+          <a class="site-nav__link" href="https://searchfoundry.co.uk" target="_blank" rel="noopener">SEO/PPC Help ↗</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <div class="bg-paper p-6 rounded-xl shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 border border-line">
+            <div>
+                <h1 class="text-2xl font-bold text-ink font-display">Striking Distance Analyzer</h1>
+                <p class="text-sm text-ink-soft mt-1">Upload a GSC export to find and forecast high-ROI keywords.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <label for="csvFileInput" class="cursor-pointer bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg font-medium transition-colors inline-block">
+                    Upload CSV
+                </label>
+                <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+            </div>
+        </div>
+        <details class="bg-paper rounded-xl shadow-sm border border-line group">
+            <summary class="p-6 font-bold text-ink cursor-pointer flex justify-between items-center">
+                <span class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    How to get your export data (3 Methods)
+                </span>
+                <span class="transition duration-300 group-open:-rotate-180">
+                    <svg class="w-5 h-5 text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </span>
+            </summary>
+            <div class="px-6 pb-6 border-t border-panel pt-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-primary-tint text-primary-dark text-xs font-bold px-2 py-1 rounded">Recommended</span>
+                        <h3 class="font-bold text-ink">Google Sheets Add-on</h3>
+                    </div>
+                    <ol class="list-decimal pl-4 space-y-2 text-sm text-ink-soft">
+                        <li>Install the free <strong>Search Analytics for Sheets</strong> extension.</li>
+                        <li>Open a blank Google Sheet and launch the extension.</li>
+                        <li>Select your website and desired date range.</li>
+                        <li>Under "Group By", select: <strong>Query</strong> and <strong>Page</strong>.</li>
+                        <li>Click "Request Data", download as CSV, and upload here.</li>
+                    </ol>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-amberbrand-tint text-amberbrand-dark text-xs font-bold px-2 py-1 rounded">Advanced</span>
+                        <h3 class="font-bold text-ink">Looker Studio Dashboard</h3>
+                    </div>
+                    <ol class="list-decimal pl-4 space-y-2 text-sm text-ink-soft">
+                        <li>Create a blank report in <strong>Looker Studio</strong>.</li>
+                        <li>Add Data -> Google Search Console -> <strong>URL Impression</strong> -> Web.</li>
+                        <li>Insert a <strong>Table chart</strong>.</li>
+                        <li>Dimensions: <strong>Query</strong> and <strong>Landing Page</strong>.</li>
+                        <li>Metrics: <strong>Impressions</strong>, <strong>Url Clicks</strong>, and <strong>Average Position</strong>.</li>
+                        <li>Click three dots -> Export -> CSV.</li>
+                    </ol>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-panel text-ink-soft text-xs font-bold px-2 py-1 rounded">Quickest</span>
+                        <h3 class="font-bold text-ink">Standard GSC Export</h3>
+                    </div>
+                    <ol class="list-decimal pl-4 space-y-2 text-sm text-ink-soft">
+                        <li>Log into standard <strong>Google Search Console</strong>.</li>
+                        <li>Go to Performance and set your date range.</li>
+                        <li>Click "Export" -> Download CSV.</li>
+                        <li>Upload <strong>ONLY</strong> the <code>Queries.csv</code> file here.</li>
+                    </ol>
+                </div>
+            </div>
+        </details>
+        <div id="domainContainer" class="hidden bg-amberbrand-tint border border-amberbrand-border p-4 rounded-xl shadow-sm">
+            <div class="flex flex-col md:flex-row items-center gap-4">
+                <div class="flex-1">
+                    <h3 class="text-amberbrand-dark font-bold">Standard Export Detected</h3>
+                    <p class="text-amberbrand-dark text-sm opacity-80">Your CSV doesn't contain URLs. Enter your domain to generate Google lookup links.</p>
+                </div>
+                <div class="flex-1 w-full">
+                    <input type="text" id="domainInput" placeholder="e.g. example.com" class="w-full border border-amberbrand-border rounded-md p-2 text-sm focus:ring-2 focus:ring-amberbrand outline-none bg-paper">
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div class="bg-paper p-6 rounded-xl shadow-sm col-span-1 lg:col-span-2 flex flex-col gap-6 border border-line">
+
+                <div class="flex flex-col md:flex-row gap-6 border-b border-panel pb-4">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-sm font-semibold text-ink">Position Range</label>
+                            <div class="flex gap-1">
+                                <button onclick="setPos(4,10)" class="text-[10px] bg-panel hover:bg-primary-tint hover:text-primary-dark text-ink-soft px-2 py-1 rounded transition-colors border border-line">Pg 1 (4-10)</button>
+                                <button onclick="setPos(11,20)" class="text-[10px] bg-panel hover:bg-primary-tint hover:text-primary-dark text-ink-soft px-2 py-1 rounded transition-colors border border-line">Pg 2 (11-20)</button>
+                                <button onclick="setPos(21,30)" class="text-[10px] bg-panel hover:bg-primary-tint hover:text-primary-dark text-ink-soft px-2 py-1 rounded transition-colors border border-line">Pg 3 (21-30)</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="minPos" value="11" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                            <span class="text-ink-soft">to</span>
+                            <input type="number" id="maxPos" value="20" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-semibold text-ink mb-2">Export Date Range (Normalizes Data)</label>
+                        <select id="dateRange" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none bg-paper">
+                            <option value="7">Last 7 days</option>
+                            <option value="28">Last 28 days</option>
+                            <option value="90" selected>Last 3 months</option>
+                            <option value="180">Last 6 months</option>
+                            <option value="365">Last 12 months</option>
+                            <option value="486">Last 16 months</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-ink mb-2">Min. Impressions</label>
+                        <input type="number" id="minImp" value="100" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-ink mb-2">Keyword Filter</label>
+                        <input type="text" id="searchInput" placeholder="e.g. 'software'..." class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-ink mb-2">Landing Page Filter</label>
+                        <input type="text" id="pageInput" placeholder="e.g. '/blog/'..." class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-colors">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-paper p-6 rounded-xl shadow-sm col-span-1 border border-line flex flex-col justify-between">
+                <div class="text-center mb-4">
+                    <span class="text-xs font-bold text-ink-soft uppercase tracking-wide font-mono">Est. Total New Clicks</span>
+                    <div class="text-3xl font-black text-success my-1" id="totalPotential">+0</div>
+                    <p class="text-[10px] text-ink-soft">Assuming Pos 3 target (10% CTR)</p>
+                </div>
+                <div class="relative h-32 w-full">
+                    <canvas id="upliftChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="bg-paper rounded-xl shadow-sm border border-line overflow-hidden">
+            <div class="p-4 border-b border-line flex justify-between items-center bg-panel">
+                <div class="text-sm font-medium text-ink-soft">
+                    Showing <span id="totalKeywords" class="font-bold text-ink">0</span> keywords
+                </div>
+                <button onclick="exportFilteredCSV()" class="bg-ink hover:bg-black text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                    Export Hit List
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr>
+                            <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider font-mono">Keyword</th>
+                            <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider w-1/4 font-mono">Landing Page</th>
+                            <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-center font-mono">Pos</th>
+                            <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Imp.</th>
+                            <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Clicks</th>
+                            <th class="p-3 text-xs font-bold text-primary uppercase tracking-wider text-right font-mono" title="(21 - Pos) * Imp">Opp. Score</th>
+                            <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono" title="Normalized Monthly Uplift">Est. Monthly Gains</th>
+                            <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono" title="Total Uplift over selected date range">Total Gains</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-panel">
+                        <tr>
+                            <td colspan="8" class="p-10 text-center text-ink-soft">Upload a GSC export to begin.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bmc-card">
+            <div class="bmc-card__icon">☕</div>
+            <p class="bmc-card__heading">This tool is free to use</p>
+            <p class="bmc-card__text">If it saved you some time, consider buying me a coffee to support future updates.</p>
+            <a class="bmc-card__button" href="https://www.buymeacoffee.com/PierreCochart" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 10h14a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M20 12h1a2 2 0 0 1 2 2 3 3 0 0 1-3 3h-1" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 3c-.5 1-.5 1.8 0 2.5M12 3c-.5 1-.5 1.8 0 2.5M16 3c-.5 1-.5 1.8 0 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                Buy me a coffee
+            </a>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SEO CONTENT BLOCK -->
+        <!-- ============================================================ -->
+        <section class="tool-content" style="margin-left:0; margin-right:0; padding:0;">
+
+          <h2>What does the Striking Distance Analyzer do?</h2>
+          <p>This tool finds "striking distance" keywords — search terms your site already ranks for on page 2 or 3 of Google (roughly positions 11–30) with meaningful impression volume — from a Google Search Console export. These are usually the fastest wins available in SEO: a page already has some relevance and authority for the term, so a moderate on-page or content push can be enough to move it onto page 1, rather than needing months of link building from a standing start.</p>
+          <p>Upload your GSC export (three methods are covered in the instructions panel: the Search Analytics for Sheets add-on, a Looker Studio dashboard, or the standard GSC export), filter by position range, impressions, keyword, or landing page, and the tool ranks every keyword by an Opportunity Score and forecasts the traffic uplift if it moved to an average position 3. Export the prioritised list as a CSV to work from directly.</p>
+
+          <h2>Frequently asked questions</h2>
+
+          <div class="faq-item">
+            <details>
+              <summary>Is the Striking Distance Analyzer free to use?</summary>
+              <p>Yes, completely free with no account or usage limit.</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>What is a "striking distance" keyword?</summary>
+              <p>It's a keyword your page already ranks for, but just outside page 1 — commonly defined as positions 11 to 30 — where a page already has enough relevance and authority that pushing it further usually takes less work than ranking a page from scratch. They're typically the highest-ROI keywords to prioritise in an SEO roadmap.</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>Is my Search Console data uploaded anywhere?</summary>
+              <p>No. The CSV is parsed and analysed entirely in your browser using PapaParse — nothing is sent to a server.</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>Why do I need to enter my domain for some exports?</summary>
+              <p>The standard GSC export (Queries.csv) doesn't include landing page URLs, only queries. When that's detected, the tool asks for your domain so it can generate a <code>site:</code> Google search link for each keyword instead — letting you quickly find which page is ranking, since the export itself doesn't tell you.</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>How is the Opportunity Score calculated?</summary>
+              <p>It's <code>(21 − average position) × impressions</code> — weighting keywords that are both closer to page 1 and have higher search volume more heavily, so the highest-scoring rows at the top of the table represent the best combination of "close to ranking" and "worth ranking for."</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>Is the 10% CTR assumption accurate for my site?</summary>
+              <p>It's a reasonable industry rule-of-thumb for an average position 3 result, not a guarantee — actual click-through rate at any position varies a lot by query intent, SERP features present (ads, featured snippets, People Also Ask), and your specific title/meta description. Treat the forecast as directional, useful for prioritisation, rather than a precise prediction.</p>
+            </details>
+          </div>
+
+          <h2>Related tools</h2>
+          <div class="related-tools">
+            <a class="related-tools__card" href="https://pierrecochart.github.io/SERP-Snippet-Viewer-Optimiser/">
+              <p class="related-tools__eyebrow">SEO &amp; Content</p>
+              <p class="related-tools__name">SERP Simulator</p>
+              <p class="related-tools__desc">Rewrite the title and meta description for your striking-distance pages.</p>
+            </a>
+            <a class="related-tools__card" href="https://pierrecochart.github.io/keyword-mixer-tool/">
+              <p class="related-tools__eyebrow">SEO &amp; Content</p>
+              <p class="related-tools__name">Keyword Mixer</p>
+              <p class="related-tools__desc">Find related keyword variations to add into a striking-distance page.</p>
+            </a>
+            <a class="related-tools__card" href="https://pierrecochart.github.io/internal-link-weaver/">
+              <p class="related-tools__eyebrow">SEO &amp; Content</p>
+              <p class="related-tools__name">Internal Link Weaver</p>
+              <p class="related-tools__desc">Add internal links to give a striking-distance page an extra push.</p>
+            </a>
+          </div>
+
+        </section>
+    </div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Is the Striking Distance Analyzer free to use?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, completely free with no account or usage limit." } },
+    { "@type": "Question", "name": "What is a striking distance keyword?", "acceptedAnswer": { "@type": "Answer", "text": "It's a keyword your page already ranks for, but just outside page 1 — commonly positions 11 to 30 — where a page already has enough relevance and authority that pushing it further usually takes less work than ranking a page from scratch." } },
+    { "@type": "Question", "name": "Is my Search Console data uploaded anywhere?", "acceptedAnswer": { "@type": "Answer", "text": "No. The CSV is parsed and analysed entirely in your browser using PapaParse — nothing is sent to a server." } },
+    { "@type": "Question", "name": "Why do I need to enter my domain for some exports?", "acceptedAnswer": { "@type": "Answer", "text": "The standard GSC export doesn't include landing page URLs, only queries. When detected, the tool asks for your domain so it can generate a site: Google search link for each keyword instead." } },
+    { "@type": "Question", "name": "How is the Opportunity Score calculated?", "acceptedAnswer": { "@type": "Answer", "text": "It's (21 minus average position) multiplied by impressions — weighting keywords that are both closer to page 1 and have higher search volume more heavily." } },
+    { "@type": "Question", "name": "Is the 10% CTR assumption accurate for my site?", "acceptedAnswer": { "@type": "Answer", "text": "It's a reasonable industry rule-of-thumb for an average position 3 result, not a guarantee — actual click-through rate varies by query intent and SERP features present." } }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Striking Distance Keyword Analyzer",
+  "url": "https://pierrecochart.github.io/striking-distance-keyword-analyzer/",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Any (runs in browser)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
+  "creator": { "@type": "Person", "name": "Pierre Cochart", "url": "https://pierrecochart.github.io/" }
+}
+</script>
+
+<footer class="site-footer -mx-6 -mb-6 md:-mx-10 md:-mb-10">
+  <div class="site-footer__cta">
+    <div class="site-footer__cta-inner">
+      <div>
+        <p class="site-footer__cta-text">Need more than a free tool?</p>
+        <p class="site-footer__cta-heading">The Search Foundry runs SEO &amp; PPC strategy for growing brands.</p>
+      </div>
+      <a class="site-footer__cta-link" href="https://searchfoundry.co.uk" target="_blank" rel="noopener">Talk to the agency ↗</a>
+    </div>
+  </div>
+
+  <div class="site-footer__inner">
+    <div class="site-footer__col">
+      <h3>Image &amp; Media</h3>
+      <ul>
+        <li><a href="https://pierrecochart.github.io/image-cropper/">Bulk Image Cropper</a></li>
+        <li><a href="https://pierrecochart.github.io/image-background-remover/">Image Background Remover</a></li>
+        <li><a href="https://pierrecochart.github.io/color-palette-generator/">Color Palette Generator</a></li>
+        <li><a href="https://pierrecochart.github.io/duotone-generator/">Duotone Generator</a></li>
+        <li><a href="https://pierrecochart.github.io/image-dithering-tool/">Image Dithering Tool</a></li>
+        <li><a href="https://pierrecochart.github.io/advanced-image-cropping-tool/">Advanced Image Cropper</a></li>
+        <li><a href="https://pierrecochart.github.io/image-to-webp-converter/">Image to WebP Converter</a></li>
+        <li><a href="https://pierrecochart.github.io/quickfav-favicon-maker/">QuickFav Favicon Maker</a></li>
+        <li><a href="https://pierrecochart.github.io/svg-cleaner/">SVG Cleaner</a></li>
+        <li><a href="https://pierrecochart.github.io/code-screenshot-image-creator/">Code Screenshot Generator</a></li>
+      </ul>
+    </div>
+    <div class="site-footer__col">
+      <h3>SEO &amp; Content</h3>
+      <ul>
+        <li><a href="https://pierrecochart.github.io/canonical-generating-tool/">Canonical Generator</a></li>
+        <li><a href="https://pierrecochart.github.io/useful-links-builder/">Useful Links Builder</a></li>
+        <li><a href="https://pierrecochart.github.io/hreflang-generator-tool/">Hreflang Generator</a></li>
+        <li><a href="https://pierrecochart.github.io/website-migration-bulk-redirect-tool/">Bulk Redirect Mapper</a></li>
+        <li><a href="https://pierrecochart.github.io/google-dork-search-operator-tool/">Google Dork Builder</a></li>
+        <li><a href="https://pierrecochart.github.io/keyword-mixer-tool/">Keyword Mixer</a></li>
+        <li><a href="https://pierrecochart.github.io/SERP-Snippet-Viewer-Optimiser/">SERP Simulator</a></li>
+        <li><a href="https://pierrecochart.github.io/seo-bulk-header-audit-tool/">SEO Header Audit</a></li>
+        <li><a href="https://pierrecochart.github.io/faq-generator/">FAQ &amp; Schema Generator</a></li>
+        <li><a href="https://pierrecochart.github.io/internal-link-weaver/">Internal Link Weaver</a></li>
+        <li><a href="https://pierrecochart.github.io/word-character-counter-read-time/">Word &amp; Character Counter</a></li>
+        <li><a href="https://pierrecochart.github.io/striking-distance-keyword-analyzer/">Striking Distance Analyzer</a></li>
+      </ul>
+    </div>
+    <div class="site-footer__col">
+      <h3>PPC &amp; Analytics</h3>
+      <ul>
+        <li><a href="https://pierrecochart.github.io/google-adwords-campaign-architect-tool/">AdWords Architect</a></li>
+        <li><a href="https://pierrecochart.github.io/roas-modeller/">ROAS Modeller</a></li>
+        <li><a href="https://pierrecochart.github.io/statistical-significance-calculator/">Significance Calculator</a></li>
+      </ul>
+    </div>
+    <div class="site-footer__col">
+      <h3>Development</h3>
+      <ul>
+        <li><a href="https://pierrecochart.github.io/document-html-link-remover/">Link Remover Tool</a></li>
+        <li><a href="https://pierrecochart.github.io/word-doc-content-sanitizer/">Word Content Sanitizer</a></li>
+        <li><a href="https://pierrecochart.github.io/github-website-builder/">GitHub Website Builder</a></li>
+        <li><a href="https://pierrecochart.github.io/html-editor/">HTML Editor</a></li>
+        <li><a href="https://pierrecochart.github.io/app-store-event-previewer/">App Store Event Previewer</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="site-footer__bottom">
+    <p>&copy; <span id="footerYear"></span> <a href="https://uk.linkedin.com/in/pierrecochart">Pierre Cochart</a>. Free, open-source, client-side tools.</p>
+    <p>Built &amp; maintained by <a href="https://searchfoundry.co.uk" target="_blank" rel="noopener">The Search Foundry</a></p>
+  </div>
+</footer>
+
+<!-- Floating BMC widget — standard on every page -->
+<script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="PierreCochart" data-description="Support me on Buy me a coffee!" data-message="" data-color="#0F6E8C" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
+
+    <script>
+        let globalData = [];
+        let filteredData = [];
+        let hasPageData = true;
+        let chartInstance = null;
+        // Preset Button Logic
+        function setPos(min, max) {
+            document.getElementById('minPos').value = min;
+            document.getElementById('maxPos').value = max;
+            renderTable();
+        }
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processData(results.data);
+                }
+            });
+        });
+        function processData(data) {
+            if (data.length === 0) return;
+
+            const keys = Object.keys(data[0]).filter(k => k != null);
+
+            let queryCol = keys.find(k => k.toLowerCase().includes('quer') || k.toLowerCase().includes('keyword'));
+            let pageCol = keys.find(k => k.toLowerCase().includes('page') || k.toLowerCase() === 'url');
+            let posCol = keys.find(k => k.toLowerCase().includes('position'));
+            let impCol = keys.find(k => k.toLowerCase().includes('impression') || k.toLowerCase().includes('imp'));
+            let clickCol = keys.find(k => k.toLowerCase().includes('click') && !k.toLowerCase().includes('ctr'));
+            if ((!queryCol || !posCol || !impCol) && keys.length >= 5 && !pageCol) {
+                queryCol = keys[0];
+                clickCol = keys[1];
+                impCol = keys[2];
+                posCol = keys[4];
+            }
+            if (!queryCol || !posCol || !impCol) {
+                alert('Error: Could not map columns. Please ensure you added Average Position to your export.');
+                return;
+            }
+            hasPageData = !!pageCol;
+
+            const domainContainer = document.getElementById('domainContainer');
+            const pageInput = document.getElementById('pageInput');
+
+            if (!hasPageData) {
+                domainContainer.classList.remove('hidden');
+                pageInput.disabled = true;
+                pageInput.placeholder = "N/A (Standard Export)";
+                pageInput.classList.add('bg-panel', 'cursor-not-allowed');
+            } else {
+                domainContainer.classList.add('hidden');
+                pageInput.disabled = false;
+                pageInput.placeholder = "e.g. '/blog/'...";
+                pageInput.classList.remove('bg-panel', 'cursor-not-allowed');
+            }
+            globalData = data.map(row => ({
+                query: String(row[queryCol] || ''),
+                page: hasPageData ? String(row[pageCol] || '') : null,
+                position: parseFloat(row[posCol]) || 0,
+                impressions: parseInt(row[impCol]) || 0,
+                clicks: parseInt(row[clickCol]) || 0
+            }));
+            renderTable();
+        }
+        function renderTable() {
+            if (globalData.length === 0) return;
+            const minPos = parseFloat(document.getElementById('minPos').value) || 0;
+            const maxPos = parseFloat(document.getElementById('maxPos').value) || 100;
+            const minImp = parseInt(document.getElementById('minImp').value) || 0;
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const pageQuery = document.getElementById('pageInput').value.toLowerCase();
+            const domain = document.getElementById('domainInput').value.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const dateRangeDays = parseInt(document.getElementById('dateRange').value) || 90;
+            filteredData = globalData.filter(d =>
+                d.position >= minPos &&
+                d.position <= maxPos &&
+                d.impressions >= minImp
+            );
+            if (searchQuery) {
+                filteredData = filteredData.filter(d => d.query.toLowerCase().includes(searchQuery));
+            }
+            if (pageQuery && hasPageData) {
+                filteredData = filteredData.filter(d => d.page && d.page.toLowerCase().includes(pageQuery));
+            }
+            let totalCurrentClicks = 0;
+            let totalEstGains = 0;
+            filteredData = filteredData.map(d => {
+                const oppScore = Math.round((21 - d.position) * d.impressions);
+
+                const totalExpected = d.impressions * 0.10;
+                const estTraffic = Math.max(0, Math.round(totalExpected - d.clicks));
+
+                const estMonthlyTraffic = Math.round((estTraffic / dateRangeDays) * 30);
+                totalCurrentClicks += d.clicks;
+                totalEstGains += estTraffic;
+                return { ...d, oppScore, estTraffic, estMonthlyTraffic };
+            });
+            filteredData.sort((a, b) => b.oppScore - a.oppScore);
+            document.getElementById('totalKeywords').innerText = filteredData.length.toLocaleString();
+            document.getElementById('totalPotential').innerText = '+' + totalEstGains.toLocaleString();
+
+            updateChart(totalCurrentClicks, totalEstGains);
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            if(filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-ink-soft">No keywords match your current filters.</td></tr>';
+                return;
+            }
+            const fragment = document.createDocumentFragment();
+            const displayData = filteredData.slice(0, 1000);
+            displayData.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-primary-tint/40 transition-colors";
+
+                let pageContent = '';
+                if (hasPageData) {
+                    pageContent = `<a href="${d.page}" target="_blank" class="hover:underline text-primary truncate block max-w-[200px]" title="${d.page}">${d.page}</a>`;
+                } else {
+                    const fullQueryString = domain ? `site:${domain} "${d.query}"` : `"${d.query}"`;
+                    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(fullQueryString)}`;
+                    pageContent = `<a href="${searchUrl}" target="_blank" class="text-[10px] bg-amberbrand-tint hover:opacity-80 text-amberbrand-dark px-2 py-1 rounded font-medium transition-colors inline-block">🔍 Find Page</a>`;
+                }
+                tr.innerHTML = `
+                    <td class="p-3 text-sm font-medium text-ink">${d.query}</td>
+                    <td class="p-3 text-sm">${pageContent}</td>
+                    <td class="p-3 text-sm text-ink-soft text-center">${d.position.toFixed(1)}</td>
+                    <td class="p-3 text-sm text-ink-soft text-right">${d.impressions.toLocaleString()}</td>
+                    <td class="p-3 text-sm text-ink-soft text-right">${d.clicks.toLocaleString()}</td>
+                    <td class="p-3 text-sm text-primary font-bold text-right bg-primary-tint/30">${d.oppScore.toLocaleString()}</td>
+                    <td class="p-3 text-sm text-success font-bold text-right bg-success-tint/60">+${d.estMonthlyTraffic.toLocaleString()}/mo</td>
+                    <td class="p-3 text-sm text-success font-bold text-right bg-success-tint/30">+${d.estTraffic.toLocaleString()}</td>
+                `;
+                fragment.appendChild(tr);
+            });
+
+            tbody.appendChild(fragment);
+        }
+        function updateChart(current, potential) {
+            const ctx = document.getElementById('upliftChart').getContext('2d');
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Traffic Profile'],
+                    datasets: [
+                        {
+                            label: 'Current Clicks',
+                            data: [current],
+                            backgroundColor: '#A39D8F',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Potential Total (If Optimized)',
+                            data: [current + potential],
+                            backgroundColor: '#2F8558',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+                        tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.raw.toLocaleString(); } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, display: false },
+                        x: { display: false }
+                    }
+                }
+            });
+        }
+        function exportFilteredCSV() {
+            if (filteredData.length === 0) return alert("No data to export!");
+
+            const domain = document.getElementById('domainInput').value.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            const csvFormat = filteredData.map(d => {
+                let row = { 'Keyword': d.query };
+                if (hasPageData) {
+                    row['Landing Page'] = d.page;
+                } else {
+                    const fullQueryString = domain ? `site:${domain} "${d.query}"` : `"${d.query}"`;
+                    row['Google Search Link'] = `https://www.google.com/search?q=${encodeURIComponent(fullQueryString)}`;
+                }
+                row['Position'] = d.position.toFixed(1);
+                row['Impressions'] = d.impressions;
+                row['Clicks'] = d.clicks;
+                row['Opportunity Score'] = d.oppScore;
+                row['Est. Monthly Gains'] = d.estMonthlyTraffic;
+                row['Est. Total Gains'] = d.estTraffic;
+                return row;
+            });
+            const csvString = Papa.unparse(csvFormat);
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "striking_distance_hitlist.csv";
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        // Event Listeners
+        document.getElementById('minPos').addEventListener('input', renderTable);
+        document.getElementById('maxPos').addEventListener('input', renderTable);
+        document.getElementById('minImp').addEventListener('input', renderTable);
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+        document.getElementById('pageInput').addEventListener('input', renderTable);
+        document.getElementById('domainInput').addEventListener('input', renderTable);
+        document.getElementById('dateRange').addEventListener('change', renderTable);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var footerYearEl = document.getElementById('footerYear');
+            if (footerYearEl) footerYearEl.textContent = new Date().getFullYear();
+
+            var toggle = document.getElementById('navToggle');
+            var nav = document.getElementById('siteNav');
+            if (toggle && nav) {
+                toggle.addEventListener('click', function () {
+                    var isOpen = nav.classList.toggle('is-open');
+                    toggle.setAttribute('aria-expanded', isOpen);
+                });
+            }
+            document.querySelectorAll('.has-dropdown > .site-nav__link').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (window.innerWidth > 860) return;
+                    var parent = btn.closest('.has-dropdown');
+                    var isOpen = parent.classList.toggle('is-open');
+                    btn.setAttribute('aria-expanded', isOpen);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
