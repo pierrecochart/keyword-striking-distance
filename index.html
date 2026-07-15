@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="canonical" href="https://pierrecochart.github.io/striking-distance-keyword-analyzer/">
     <title>Striking Distance Keyword Analyzer — Find Quick-Win SEO Keywords | Pierre Cochart</title>
-    <meta name="description" content="Upload a Google Search Console export to find keywords ranking on page 2-3 with high impressions — the fastest wins in SEO. Forecasts traffic uplift and exports a prioritised hit list. Free and client-side.">
+    <meta name="description" content="Upload a Google Search Console export to find keywords ranking on page 2-3, cluster them by landing page into content briefs, detect keyword cannibalization, and forecast traffic uplift with your own CTR model. Free and client-side.">
     <meta property="og:title" content="Striking Distance Keyword Analyzer">
-    <meta property="og:description" content="Find and forecast high-ROI 'striking distance' keywords from a GSC export. Free and client-side.">
+    <meta property="og:description" content="Find high-ROI keywords, cluster them into content briefs, and catch cannibalization from a GSC export. Free and client-side.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://pierrecochart.github.io/striking-distance-keyword-analyzer/">
     <meta property="og:image" content="https://placehold.co/1200x630/0F6E8C/FAFAF7?font=roboto&text=Striking+Distance+Analyzer">
@@ -332,38 +332,70 @@
                         <input type="text" id="pageInput" placeholder="e.g. '/blog/'..." class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-colors">
                     </div>
                 </div>
+
+                <div class="border-t border-panel pt-4">
+                    <div class="flex flex-col md:flex-row md:items-end gap-4">
+                        <div class="flex-1">
+                            <label class="block text-sm font-semibold text-ink mb-2">Brand Terms <span class="text-ink-soft font-normal">(comma-separated)</span></label>
+                            <input type="text" id="brandInput" placeholder="e.g. nike, nike uk" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                        </div>
+                        <div class="flex gap-1" id="brandModeGroup">
+                            <button type="button" data-brandmode="all" class="brand-mode-btn text-xs px-3 py-2 rounded-md border border-line bg-primary text-white font-medium transition-colors">All</button>
+                            <button type="button" data-brandmode="nonbranded" class="brand-mode-btn text-xs px-3 py-2 rounded-md border border-line bg-panel text-ink-soft font-medium transition-colors">Non-Branded</button>
+                            <button type="button" data-brandmode="branded" class="brand-mode-btn text-xs px-3 py-2 rounded-md border border-line bg-panel text-ink-soft font-medium transition-colors">Branded Only</button>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-ink-soft mt-2">Branded queries usually convert on visibility alone rather than content quality, which skews striking-distance forecasts — filter them out to see net-new organic opportunity.</p>
+                </div>
             </div>
             <div class="bg-paper p-6 rounded-xl shadow-sm col-span-1 border border-line flex flex-col justify-between">
                 <div class="text-center mb-4">
                     <span class="text-xs font-bold text-ink-soft uppercase tracking-wide font-mono">Est. Total New Clicks</span>
                     <div class="text-3xl font-black text-success my-1" id="totalPotential">+0</div>
-                    <p class="text-[10px] text-ink-soft">Assuming Pos 3 target (10% CTR)</p>
+                    <p class="text-[10px] text-ink-soft" id="ctrAssumptionLabel">Assuming Pos 3 target (10% CTR)</p>
                 </div>
                 <div class="relative h-32 w-full">
                     <canvas id="upliftChart"></canvas>
                 </div>
             </div>
         </div>
+
+        <div id="cannibalBanner" class="hidden bg-amberbrand-tint border border-amberbrand-border p-4 rounded-xl shadow-sm flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <h3 class="text-amberbrand-dark font-bold flex items-center gap-2">⚠ Keyword Cannibalization Detected</h3>
+                <p class="text-amberbrand-dark text-sm opacity-80" id="cannibalText">0 keywords are ranking for more than one page in your current filters.</p>
+            </div>
+            <button type="button" id="cannibalToggle" class="text-xs bg-paper border border-amberbrand-border text-amberbrand-dark px-3 py-2 rounded-md font-medium hover:opacity-80 transition-opacity">Highlight rows</button>
+        </div>
+
         <div class="bg-paper rounded-xl shadow-sm border border-line overflow-hidden">
-            <div class="p-4 border-b border-line flex justify-between items-center bg-panel">
-                <div class="text-sm font-medium text-ink-soft">
+            <div class="p-4 border-b border-line flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-panel">
+                <div class="text-sm font-medium text-ink-soft" id="resultsSummary">
                     Showing <span id="totalKeywords" class="font-bold text-ink">0</span> keywords
                 </div>
-                <button onclick="exportFilteredCSV()" class="bg-ink hover:bg-black text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                    Export Hit List
-                </button>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="flex gap-1" id="viewModeGroup">
+                        <button type="button" data-viewmode="keyword" class="view-mode-btn text-xs px-3 py-2 rounded-md border border-line bg-primary text-white font-medium transition-colors">Keyword View</button>
+                        <button type="button" data-viewmode="page" id="pageViewBtn" class="view-mode-btn text-xs px-3 py-2 rounded-md border border-line bg-paper text-ink-soft font-medium transition-colors">Page View (Content Brief)</button>
+                    </div>
+                    <button type="button" id="settingsBtn" class="text-xs bg-paper border border-line text-ink px-3 py-2 rounded-md font-medium hover:bg-panel transition-colors" title="Adjust target position and CTR assumptions">⚙ CTR Settings</button>
+                    <button type="button" id="clearSavedBtn" class="text-xs bg-paper border border-line text-ink-soft px-3 py-2 rounded-md font-medium hover:bg-panel transition-colors" title="Clear the CSV and filters saved in this browser">Clear Saved Data</button>
+                    <button onclick="exportFilteredCSV()" class="bg-ink hover:bg-black text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        Export Hit List
+                    </button>
+                </div>
             </div>
 
-            <div class="table-container">
+            <div class="table-container" id="tableWrap">
                 <table class="w-full text-left border-collapse">
-                    <thead>
+                    <thead id="tableHead">
                         <tr>
                             <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider font-mono">Keyword</th>
                             <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider w-1/4 font-mono">Landing Page</th>
                             <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-center font-mono">Pos</th>
                             <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Imp.</th>
                             <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Clicks</th>
-                            <th class="p-3 text-xs font-bold text-primary uppercase tracking-wider text-right font-mono" title="(21 - Pos) * Imp">Opp. Score</th>
+                            <th class="p-3 text-xs font-bold text-primary uppercase tracking-wider text-right font-mono" id="oppScoreHeader" title="(31 - Pos) * Imp">Opp. Score</th>
                             <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono" title="Normalized Monthly Uplift">Est. Monthly Gains</th>
                             <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono" title="Total Uplift over selected date range">Total Gains</th>
                         </tr>
@@ -374,6 +406,35 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- CTR Settings Modal -->
+        <div id="settingsModal" class="hidden fixed inset-0 bg-ink/50 z-50 flex items-center justify-center p-4">
+            <div class="bg-paper rounded-xl shadow-lg border border-line max-w-md w-full p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-display font-bold text-lg text-ink">CTR &amp; Target Position</h3>
+                    <button type="button" id="settingsClose" class="text-ink-soft hover:text-ink text-xl leading-none">&times;</button>
+                </div>
+                <p class="text-sm text-ink-soft mb-4">The default 10% CTR at position 3 is a generic estimate. Set your own target rank and expected click-through rate — a B2B software query and a local plumbing query convert very differently at the same position.</p>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-ink mb-2 font-mono uppercase tracking-wide">Target Position</label>
+                        <input type="number" id="targetPositionInput" min="1" max="10" step="1" value="3" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-ink mb-2 font-mono uppercase tracking-wide">Target CTR %</label>
+                        <input type="number" id="targetCtrInput" min="0" max="100" step="0.1" value="10" class="w-full border border-line rounded-md p-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                </div>
+                <div class="bg-panel rounded-md p-3 mb-4">
+                    <p class="text-[11px] font-semibold text-ink-soft uppercase tracking-wide font-mono mb-1">Commonly cited averages (vary a lot by vertical)</p>
+                    <p class="text-xs text-ink-soft leading-relaxed">Pos 1 ≈ 25–30% · Pos 2 ≈ 12–18% · Pos 3 ≈ 8–12% · Pos 5 ≈ 4–6% · Pos 10 ≈ 1–3%. Treat these as a rough starting point, not your actual rate — pull your own CTR from GSC for your best-performing pages if you can.</p>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" id="settingsCancel" class="text-sm px-4 py-2 rounded-md border border-line text-ink-soft hover:bg-panel transition-colors">Cancel</button>
+                    <button type="button" id="settingsSave" class="text-sm px-4 py-2 rounded-md bg-primary hover:bg-primary-dark text-white font-medium transition-colors">Save &amp; Apply</button>
+                </div>
             </div>
         </div>
 
@@ -394,7 +455,7 @@
 
           <h2>What does the Striking Distance Analyzer do?</h2>
           <p>This tool finds "striking distance" keywords — search terms your site already ranks for on page 2 or 3 of Google (roughly positions 11–30) with meaningful impression volume — from a Google Search Console export. These are usually the fastest wins available in SEO: a page already has some relevance and authority for the term, so a moderate on-page or content push can be enough to move it onto page 1, rather than needing months of link building from a standing start.</p>
-          <p>Upload your GSC export (three methods are covered in the instructions panel: the Search Analytics for Sheets add-on, a Looker Studio dashboard, or the standard GSC export), filter by position range, impressions, keyword, or landing page, and the tool ranks every keyword by an Opportunity Score and forecasts the traffic uplift if it moved to an average position 3. Export the prioritised list as a CSV to work from directly.</p>
+          <p>Upload your GSC export (three methods are covered in the instructions panel: the Search Analytics for Sheets add-on, a Looker Studio dashboard, or the standard GSC export), filter by position range, impressions, keyword, landing page, or brand terms, and the tool ranks every keyword by an Opportunity Score and forecasts the traffic uplift against a target position and CTR you control. Switch to Page View to see the same data rolled up by URL — the content-brief view for deciding which page to rewrite first — and watch for the cannibalization warning if the same keyword is splitting rankings across more than one page. Export the prioritised list as a CSV to work from directly.</p>
 
           <h2>Frequently asked questions</h2>
 
@@ -415,28 +476,42 @@
           <div class="faq-item">
             <details>
               <summary>Is my Search Console data uploaded anywhere?</summary>
-              <p>No. The CSV is parsed and analysed entirely in your browser using PapaParse — nothing is sent to a server.</p>
+              <p>No, it's never sent to a server — everything is parsed and analysed locally using PapaParse. It is, however, saved in your browser's local storage on this device so your CSV, filters, and settings are still there if you close the tab or come back later. Use the "Clear Saved Data" button any time to remove it.</p>
             </details>
           </div>
 
           <div class="faq-item">
             <details>
               <summary>Why do I need to enter my domain for some exports?</summary>
-              <p>The standard GSC export (Queries.csv) doesn't include landing page URLs, only queries. When that's detected, the tool asks for your domain so it can generate a <code>site:</code> Google search link for each keyword instead — letting you quickly find which page is ranking, since the export itself doesn't tell you.</p>
+              <p>The standard GSC export (Queries.csv) doesn't include landing page URLs, only queries. When that's detected, the tool asks for your domain so it can generate a <code>site:</code> Google search link for each keyword instead — letting you quickly find which page is ranking, since the export itself doesn't tell you. Page View and cannibalization detection both need real landing page data, so they're unavailable for a domain-only standard export.</p>
             </details>
           </div>
 
           <div class="faq-item">
             <details>
               <summary>How is the Opportunity Score calculated?</summary>
-              <p>It's <code>(21 − average position) × impressions</code> — weighting keywords that are both closer to page 1 and have higher search volume more heavily, so the highest-scoring rows at the top of the table represent the best combination of "close to ranking" and "worth ranking for."</p>
+              <p>It's <code>(31 − average position) × impressions</code> — weighting keywords that are both closer to page 1 and have higher search volume more heavily, so the highest-scoring rows at the top of the table represent the best combination of "close to ranking" and "worth ranking for." In Page View, a page's score is the sum of the Opportunity Scores of every striking-distance keyword currently matching it.</p>
             </details>
           </div>
 
           <div class="faq-item">
             <details>
-              <summary>Is the 10% CTR assumption accurate for my site?</summary>
-              <p>It's a reasonable industry rule-of-thumb for an average position 3 result, not a guarantee — actual click-through rate at any position varies a lot by query intent, SERP features present (ads, featured snippets, People Also Ask), and your specific title/meta description. Treat the forecast as directional, useful for prioritisation, rather than a precise prediction.</p>
+              <summary>Is the CTR assumption accurate for my site?</summary>
+              <p>By default it's 10% at position 3, a commonly cited industry rule-of-thumb, not a guarantee — actual click-through rate varies a lot by query intent, SERP features present, and your title/meta description. Open "CTR Settings" to set your own target position and CTR based on your own site's data if you have it; the forecast is directional either way, useful for prioritisation rather than a precise prediction.</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>What does the cannibalization warning mean?</summary>
+              <p>It means the same keyword, within your current filters, is showing up ranking for more than one landing page on your site — which typically splits ranking signals across both pages and keeps either from reaching page 1. It's usually worth consolidating the weaker page into the stronger one with a 301 redirect, or clearly differentiating the two pages' targeting, rather than optimising them separately.</p>
+            </details>
+          </div>
+
+          <div class="faq-item">
+            <details>
+              <summary>How does Page View differ from Keyword View?</summary>
+              <p>Keyword View lists every striking-distance keyword as its own row. Page View groups those same keywords by landing page and sums their Opportunity Scores into a single Page Opportunity Score, so you can see at a glance which article or page has the most striking-distance keywords worth targeting — expand a page's row to see the individual keywords behind its score.</p>
             </details>
           </div>
 
@@ -469,10 +544,12 @@
   "mainEntity": [
     { "@type": "Question", "name": "Is the Striking Distance Analyzer free to use?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, completely free with no account or usage limit." } },
     { "@type": "Question", "name": "What is a striking distance keyword?", "acceptedAnswer": { "@type": "Answer", "text": "It's a keyword your page already ranks for, but just outside page 1 — commonly positions 11 to 30 — where a page already has enough relevance and authority that pushing it further usually takes less work than ranking a page from scratch." } },
-    { "@type": "Question", "name": "Is my Search Console data uploaded anywhere?", "acceptedAnswer": { "@type": "Answer", "text": "No. The CSV is parsed and analysed entirely in your browser using PapaParse — nothing is sent to a server." } },
+    { "@type": "Question", "name": "Is my Search Console data uploaded anywhere?", "acceptedAnswer": { "@type": "Answer", "text": "No, it's never sent to a server. It is saved in your browser's local storage on this device so your data persists between visits; use Clear Saved Data to remove it." } },
     { "@type": "Question", "name": "Why do I need to enter my domain for some exports?", "acceptedAnswer": { "@type": "Answer", "text": "The standard GSC export doesn't include landing page URLs, only queries. When detected, the tool asks for your domain so it can generate a site: Google search link for each keyword instead." } },
-    { "@type": "Question", "name": "How is the Opportunity Score calculated?", "acceptedAnswer": { "@type": "Answer", "text": "It's (21 minus average position) multiplied by impressions — weighting keywords that are both closer to page 1 and have higher search volume more heavily." } },
-    { "@type": "Question", "name": "Is the 10% CTR assumption accurate for my site?", "acceptedAnswer": { "@type": "Answer", "text": "It's a reasonable industry rule-of-thumb for an average position 3 result, not a guarantee — actual click-through rate varies by query intent and SERP features present." } }
+    { "@type": "Question", "name": "How is the Opportunity Score calculated?", "acceptedAnswer": { "@type": "Answer", "text": "It's (31 minus average position) multiplied by impressions — weighting keywords that are both closer to page 1 and have higher search volume more heavily." } },
+    { "@type": "Question", "name": "Is the CTR assumption accurate for my site?", "acceptedAnswer": { "@type": "Answer", "text": "By default it's 10% at position 3, a commonly cited industry rule-of-thumb, not a guarantee. Open CTR Settings to set your own target position and CTR." } },
+    { "@type": "Question", "name": "What does the cannibalization warning mean?", "acceptedAnswer": { "@type": "Answer", "text": "The same keyword is ranking for more than one landing page on your site, which typically splits ranking signals and keeps either page from reaching page 1." } },
+    { "@type": "Question", "name": "How does Page View differ from Keyword View?", "acceptedAnswer": { "@type": "Answer", "text": "Keyword View lists every keyword as its own row. Page View groups keywords by landing page and sums their Opportunity Scores into a single Page Opportunity Score." } }
   ]
 }
 </script>
@@ -564,16 +641,27 @@
 <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="PierreCochart" data-description="Support me on Buy me a coffee!" data-message="" data-color="#0F6E8C" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
 
     <script>
-        let globalData = [];
-        let filteredData = [];
+        // --- State ---
+        let globalData = [];       // raw parsed rows
+        let filteredData = [];     // after position/impressions/keyword/page/brand filters, with oppScore etc attached
         let hasPageData = true;
         let chartInstance = null;
-        // Preset Button Logic
+        let viewMode = 'keyword';  // 'keyword' | 'page'
+        let brandMode = 'all';     // 'all' | 'nonbranded' | 'branded'
+        let cannibalMap = new Map(); // query (lowercased) -> Set of pages, computed each render over filteredData
+        let cannibalHighlightOn = true;
+        let settings = { targetPosition: 3, targetCTR: 10 };
+
+        const STORAGE_KEYS = { data: 'sda_globalData', settings: 'sda_settings', hasPageData: 'sda_hasPageData' };
+
+        // --- Preset Button Logic ---
         function setPos(min, max) {
             document.getElementById('minPos').value = min;
             document.getElementById('maxPos').value = max;
             renderTable();
+            persistSettings();
         }
+
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -586,6 +674,7 @@
                 }
             });
         });
+
         function processData(data) {
             if (data.length === 0) return;
 
@@ -610,17 +699,25 @@
 
             const domainContainer = document.getElementById('domainContainer');
             const pageInput = document.getElementById('pageInput');
+            const pageViewBtn = document.getElementById('pageViewBtn');
 
             if (!hasPageData) {
                 domainContainer.classList.remove('hidden');
                 pageInput.disabled = true;
                 pageInput.placeholder = "N/A (Standard Export)";
                 pageInput.classList.add('bg-panel', 'cursor-not-allowed');
+                pageViewBtn.disabled = true;
+                pageViewBtn.title = "Page View needs landing page data — not available in a standard Queries.csv export.";
+                pageViewBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                if (viewMode === 'page') setViewMode('keyword');
             } else {
                 domainContainer.classList.add('hidden');
                 pageInput.disabled = false;
                 pageInput.placeholder = "e.g. '/blog/'...";
                 pageInput.classList.remove('bg-panel', 'cursor-not-allowed');
+                pageViewBtn.disabled = false;
+                pageViewBtn.title = '';
+                pageViewBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
             globalData = data.map(row => ({
                 query: String(row[queryCol] || ''),
@@ -630,7 +727,21 @@
                 clicks: parseInt(row[clickCol]) || 0
             }));
             renderTable();
+            persistData();
         }
+
+        // --- Brand segmentation helpers ---
+        function getBrandTerms() {
+            const raw = document.getElementById('brandInput').value || '';
+            return raw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+        }
+        function isBranded(query, terms) {
+            if (!terms.length) return false;
+            const q = query.toLowerCase();
+            return terms.some(t => q.includes(t));
+        }
+
+        // --- Main filter + calculation pass ---
         function renderTable() {
             if (globalData.length === 0) return;
             const minPos = parseFloat(document.getElementById('minPos').value) || 0;
@@ -640,23 +751,37 @@
             const pageQuery = document.getElementById('pageInput').value.toLowerCase();
             const domain = document.getElementById('domainInput').value.replace(/^https?:\/\//, '').replace(/\/$/, '');
             const dateRangeDays = parseInt(document.getElementById('dateRange').value) || 90;
+            const brandTerms = getBrandTerms();
+
             filteredData = globalData.filter(d =>
                 d.position >= minPos &&
                 d.position <= maxPos &&
                 d.impressions >= minImp
             );
+
             if (searchQuery) {
                 filteredData = filteredData.filter(d => d.query.toLowerCase().includes(searchQuery));
             }
             if (pageQuery && hasPageData) {
                 filteredData = filteredData.filter(d => d.page && d.page.toLowerCase().includes(pageQuery));
             }
+            if (brandMode === 'branded') {
+                filteredData = filteredData.filter(d => isBranded(d.query, brandTerms));
+            } else if (brandMode === 'nonbranded') {
+                filteredData = filteredData.filter(d => !isBranded(d.query, brandTerms));
+            }
+
+            // Opportunity score + traffic forecast using the user's target position/CTR
             let totalCurrentClicks = 0;
             let totalEstGains = 0;
+            const targetCtrDecimal = (settings.targetCTR || 0) / 100;
             filteredData = filteredData.map(d => {
-                const oppScore = Math.round((21 - d.position) * d.impressions);
+                // Generalised weighting: distance from an assumed "worst realistic"
+                // position of 31 (covers the page-3 preset range), so it stays
+                // sensible regardless of which target position is chosen.
+                const oppScore = Math.max(0, Math.round((31 - d.position) * d.impressions));
 
-                const totalExpected = d.impressions * 0.10;
+                const totalExpected = d.impressions * targetCtrDecimal;
                 const estTraffic = Math.max(0, Math.round(totalExpected - d.clicks));
 
                 const estMonthlyTraffic = Math.round((estTraffic / dateRangeDays) * 30);
@@ -665,21 +790,77 @@
                 return { ...d, oppScore, estTraffic, estMonthlyTraffic };
             });
             filteredData.sort((a, b) => b.oppScore - a.oppScore);
+
+            // --- Cannibalization detection (within current filtered set) ---
+            cannibalMap = new Map();
+            if (hasPageData) {
+                const seen = new Map(); // query -> Set(pages)
+                filteredData.forEach(d => {
+                    const key = d.query.toLowerCase();
+                    if (!seen.has(key)) seen.set(key, new Set());
+                    if (d.page) seen.get(key).add(d.page);
+                });
+                seen.forEach((pages, key) => {
+                    if (pages.size > 1) cannibalMap.set(key, pages);
+                });
+            }
+            updateCannibalBanner();
+
             document.getElementById('totalKeywords').innerText = filteredData.length.toLocaleString();
             document.getElementById('totalPotential').innerText = '+' + totalEstGains.toLocaleString();
+            document.getElementById('ctrAssumptionLabel').innerText =
+                `Assuming Pos ${settings.targetPosition} target (${settings.targetCTR}% CTR)`;
 
             updateChart(totalCurrentClicks, totalEstGains);
+
+            if (viewMode === 'page' && hasPageData) {
+                renderPageView();
+            } else {
+                renderKeywordView(domain);
+            }
+
+            persistSettings();
+        }
+
+        function updateCannibalBanner() {
+            const banner = document.getElementById('cannibalBanner');
+            const text = document.getElementById('cannibalText');
+            if (cannibalMap.size > 0) {
+                banner.classList.remove('hidden');
+                text.innerText = `${cannibalMap.size} keyword${cannibalMap.size === 1 ? '' : 's'} ranking for more than one page in your current filters.`;
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        // --- Keyword View ---
+        function renderKeywordView(domain) {
+            document.getElementById('tableHead').innerHTML = `
+                <tr>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider font-mono">Keyword</th>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider w-1/4 font-mono">Landing Page</th>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-center font-mono">Pos</th>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Imp.</th>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Clicks</th>
+                    <th class="p-3 text-xs font-bold text-primary uppercase tracking-wider text-right font-mono" title="(31 - Pos) * Imp">Opp. Score</th>
+                    <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono" title="Normalized Monthly Uplift">Est. Monthly Gains</th>
+                    <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono" title="Total Uplift over selected date range">Total Gains</th>
+                </tr>`;
+
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
-            if(filteredData.length === 0) {
+            if (filteredData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-ink-soft">No keywords match your current filters.</td></tr>';
                 return;
             }
             const fragment = document.createDocumentFragment();
             const displayData = filteredData.slice(0, 1000);
             displayData.forEach(d => {
+                const isCannibal = cannibalHighlightOn && cannibalMap.has(d.query.toLowerCase());
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-primary-tint/40 transition-colors";
+                tr.className = isCannibal
+                    ? "bg-[#FBEDED] hover:bg-[#F4D9D9] transition-colors"
+                    : "hover:bg-primary-tint/40 transition-colors";
 
                 let pageContent = '';
                 if (hasPageData) {
@@ -689,8 +870,9 @@
                     const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(fullQueryString)}`;
                     pageContent = `<a href="${searchUrl}" target="_blank" class="text-[10px] bg-amberbrand-tint hover:opacity-80 text-amberbrand-dark px-2 py-1 rounded font-medium transition-colors inline-block">🔍 Find Page</a>`;
                 }
+                const flag = isCannibal ? `<span title="Ranking for multiple pages" class="mr-1">⚠</span>` : '';
                 tr.innerHTML = `
-                    <td class="p-3 text-sm font-medium text-ink">${d.query}</td>
+                    <td class="p-3 text-sm font-medium text-ink">${flag}${d.query}</td>
                     <td class="p-3 text-sm">${pageContent}</td>
                     <td class="p-3 text-sm text-ink-soft text-center">${d.position.toFixed(1)}</td>
                     <td class="p-3 text-sm text-ink-soft text-right">${d.impressions.toLocaleString()}</td>
@@ -701,32 +883,169 @@
                 `;
                 fragment.appendChild(tr);
             });
-
             tbody.appendChild(fragment);
         }
+
+        // --- Page View (Content Brief) ---
+        function renderPageView() {
+            document.getElementById('tableHead').innerHTML = `
+                <tr>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider font-mono">Landing Page</th>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-center font-mono">Keywords</th>
+                    <th class="p-3 text-xs font-bold text-ink-soft uppercase tracking-wider text-right font-mono">Total Imp.</th>
+                    <th class="p-3 text-xs font-bold text-primary uppercase tracking-wider text-right font-mono" title="Sum of each keyword's Opp. Score">Page Opp. Score</th>
+                    <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono">Est. Monthly Gains</th>
+                    <th class="p-3 text-xs font-bold text-success uppercase tracking-wider text-right font-mono">Total Gains</th>
+                </tr>`;
+
+            const groups = new Map();
+            filteredData.forEach(d => {
+                const page = d.page || '(unknown page)';
+                if (!groups.has(page)) groups.set(page, []);
+                groups.get(page).push(d);
+            });
+
+            const pageRows = Array.from(groups.entries()).map(([page, rows]) => {
+                const pageOppScore = rows.reduce((s, r) => s + r.oppScore, 0);
+                const totalImp = rows.reduce((s, r) => s + r.impressions, 0);
+                const totalMonthly = rows.reduce((s, r) => s + r.estMonthlyTraffic, 0);
+                const totalGains = rows.reduce((s, r) => s + r.estTraffic, 0);
+                const hasCannibal = rows.some(r => cannibalMap.has(r.query.toLowerCase()));
+                rows.sort((a, b) => b.oppScore - a.oppScore);
+                return { page, rows, pageOppScore, totalImp, totalMonthly, totalGains, hasCannibal };
+            }).sort((a, b) => b.pageOppScore - a.pageOppScore);
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            if (pageRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-ink-soft">No pages match your current filters.</td></tr>';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            pageRows.slice(0, 500).forEach((p, idx) => {
+                const groupId = `page-group-${idx}`;
+                const summaryRow = document.createElement('tr');
+                summaryRow.className = "cursor-pointer hover:bg-primary-tint/40 transition-colors border-t border-line";
+                summaryRow.setAttribute('data-toggle', groupId);
+                const cannibalFlag = p.hasCannibal ? `<span title="Contains a cannibalized keyword" class="mr-1">⚠</span>` : '';
+                const arrow = `<span class="inline-block w-3 text-ink-soft toggle-arrow">▸</span>`;
+                summaryRow.innerHTML = `
+                    <td class="p-3 text-sm font-semibold text-ink">${arrow}${cannibalFlag}<a href="${p.page}" target="_blank" class="hover:underline text-primary" onclick="event.stopPropagation()">${p.page}</a></td>
+                    <td class="p-3 text-sm text-ink-soft text-center">${p.rows.length}</td>
+                    <td class="p-3 text-sm text-ink-soft text-right">${p.totalImp.toLocaleString()}</td>
+                    <td class="p-3 text-sm text-primary font-bold text-right bg-primary-tint/30">${p.pageOppScore.toLocaleString()}</td>
+                    <td class="p-3 text-sm text-success font-bold text-right bg-success-tint/60">+${p.totalMonthly.toLocaleString()}/mo</td>
+                    <td class="p-3 text-sm text-success font-bold text-right bg-success-tint/30">+${p.totalGains.toLocaleString()}</td>
+                `;
+                fragment.appendChild(summaryRow);
+
+                const detailRow = document.createElement('tr');
+                detailRow.id = groupId;
+                detailRow.className = "hidden";
+                const detailCell = document.createElement('td');
+                detailCell.colSpan = 6;
+                detailCell.className = "p-0 bg-panel";
+                const innerTable = p.rows.map(r => {
+                    const isCannibal = cannibalHighlightOn && cannibalMap.has(r.query.toLowerCase());
+                    return `<div class="flex justify-between items-center px-6 py-2 text-xs border-b border-line last:border-b-0 ${isCannibal ? 'bg-[#FBEDED]' : ''}">
+                        <span class="text-ink">${isCannibal ? '⚠ ' : ''}${r.query}</span>
+                        <span class="flex gap-4 text-ink-soft">
+                            <span>Pos ${r.position.toFixed(1)}</span>
+                            <span>${r.impressions.toLocaleString()} imp</span>
+                            <span class="text-primary font-semibold">${r.oppScore.toLocaleString()} opp</span>
+                            <span class="text-success font-semibold">+${r.estTraffic.toLocaleString()}</span>
+                        </span>
+                    </div>`;
+                }).join('');
+                detailCell.innerHTML = `<div class="py-2">${innerTable}</div>`;
+                detailRow.appendChild(detailCell);
+                fragment.appendChild(detailRow);
+            });
+            tbody.appendChild(fragment);
+
+            tbody.querySelectorAll('tr[data-toggle]').forEach(row => {
+                row.addEventListener('click', function() {
+                    const id = row.getAttribute('data-toggle');
+                    const detail = document.getElementById(id);
+                    const arrow = row.querySelector('.toggle-arrow');
+                    const isHidden = detail.classList.toggle('hidden');
+                    arrow.textContent = isHidden ? '▸' : '▾';
+                });
+            });
+        }
+
+        // --- View / Brand mode toggle wiring ---
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.querySelectorAll('.view-mode-btn').forEach(btn => {
+                const active = btn.getAttribute('data-viewmode') === mode;
+                btn.classList.toggle('bg-primary', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('bg-paper', !active);
+                btn.classList.toggle('text-ink-soft', !active);
+            });
+            renderTable();
+        }
+        document.querySelectorAll('.view-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                setViewMode(btn.getAttribute('data-viewmode'));
+            });
+        });
+
+        function setBrandMode(mode) {
+            brandMode = mode;
+            document.querySelectorAll('.brand-mode-btn').forEach(btn => {
+                const active = btn.getAttribute('data-brandmode') === mode;
+                btn.classList.toggle('bg-primary', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('bg-panel', !active);
+                btn.classList.toggle('text-ink-soft', !active);
+            });
+            renderTable();
+        }
+        document.querySelectorAll('.brand-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => setBrandMode(btn.getAttribute('data-brandmode')));
+        });
+
+        document.getElementById('cannibalToggle').addEventListener('click', function() {
+            cannibalHighlightOn = !cannibalHighlightOn;
+            this.textContent = cannibalHighlightOn ? 'Hide highlight' : 'Highlight rows';
+            renderTable();
+        });
+
+        // --- CTR Settings modal ---
+        const settingsModal = document.getElementById('settingsModal');
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            document.getElementById('targetPositionInput').value = settings.targetPosition;
+            document.getElementById('targetCtrInput').value = settings.targetCTR;
+            settingsModal.classList.remove('hidden');
+        });
+        function closeSettingsModal() { settingsModal.classList.add('hidden'); }
+        document.getElementById('settingsClose').addEventListener('click', closeSettingsModal);
+        document.getElementById('settingsCancel').addEventListener('click', closeSettingsModal);
+        settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettingsModal(); });
+        document.getElementById('settingsSave').addEventListener('click', () => {
+            const pos = parseInt(document.getElementById('targetPositionInput').value) || 3;
+            const ctr = parseFloat(document.getElementById('targetCtrInput').value);
+            settings.targetPosition = Math.max(1, Math.min(10, pos));
+            settings.targetCTR = isNaN(ctr) ? 10 : Math.max(0, Math.min(100, ctr));
+            closeSettingsModal();
+            renderTable();
+        });
+
+        // --- Chart ---
         function updateChart(current, potential) {
             const ctx = document.getElementById('upliftChart').getContext('2d');
-
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
+            if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Traffic Profile'],
                     datasets: [
-                        {
-                            label: 'Current Clicks',
-                            data: [current],
-                            backgroundColor: '#A39D8F',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Potential Total (If Optimized)',
-                            data: [current + potential],
-                            backgroundColor: '#2F8558',
-                            borderRadius: 4
-                        }
+                        { label: 'Current Clicks', data: [current], backgroundColor: '#A39D8F', borderRadius: 4 },
+                        { label: 'Potential Total (If Optimized)', data: [current + potential], backgroundColor: '#2F8558', borderRadius: 4 }
                     ]
                 },
                 options: {
@@ -736,16 +1055,14 @@
                         legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
                         tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.raw.toLocaleString(); } } }
                     },
-                    scales: {
-                        y: { beginAtZero: true, display: false },
-                        x: { display: false }
-                    }
+                    scales: { y: { beginAtZero: true, display: false }, x: { display: false } }
                 }
             });
         }
+
+        // --- Export ---
         function exportFilteredCSV() {
             if (filteredData.length === 0) return alert("No data to export!");
-
             const domain = document.getElementById('domainInput').value.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
             const csvFormat = filteredData.map(d => {
@@ -762,6 +1079,7 @@
                 row['Opportunity Score'] = d.oppScore;
                 row['Est. Monthly Gains'] = d.estMonthlyTraffic;
                 row['Est. Total Gains'] = d.estTraffic;
+                row['Cannibalized'] = cannibalMap.has(d.query.toLowerCase()) ? 'Yes' : 'No';
                 return row;
             });
             const csvString = Papa.unparse(csvFormat);
@@ -774,7 +1092,110 @@
             link.click();
             document.body.removeChild(link);
         }
-        // Event Listeners
+
+        // --- localStorage persistence ---
+        function persistData() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(globalData));
+                localStorage.setItem(STORAGE_KEYS.hasPageData, JSON.stringify(hasPageData));
+            } catch (err) {
+                console.warn('Could not save dataset to local storage (likely too large):', err);
+            }
+        }
+        function persistSettings() {
+            try {
+                const filterState = {
+                    minPos: document.getElementById('minPos').value,
+                    maxPos: document.getElementById('maxPos').value,
+                    minImp: document.getElementById('minImp').value,
+                    searchInput: document.getElementById('searchInput').value,
+                    pageInput: document.getElementById('pageInput').value,
+                    domainInput: document.getElementById('domainInput').value,
+                    dateRange: document.getElementById('dateRange').value,
+                    brandInput: document.getElementById('brandInput').value,
+                    brandMode: brandMode,
+                    viewMode: viewMode,
+                    settings: settings
+                };
+                localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(filterState));
+            } catch (err) {
+                console.warn('Could not save settings to local storage:', err);
+            }
+        }
+        function restoreFromStorage() {
+            let restoredSettings = null;
+            try {
+                const rawSettings = localStorage.getItem(STORAGE_KEYS.settings);
+                if (rawSettings) restoredSettings = JSON.parse(rawSettings);
+            } catch (err) { console.warn('Could not read saved settings:', err); }
+
+            if (restoredSettings) {
+                document.getElementById('minPos').value = restoredSettings.minPos ?? 11;
+                document.getElementById('maxPos').value = restoredSettings.maxPos ?? 20;
+                document.getElementById('minImp').value = restoredSettings.minImp ?? 100;
+                document.getElementById('searchInput').value = restoredSettings.searchInput ?? '';
+                document.getElementById('pageInput').value = restoredSettings.pageInput ?? '';
+                document.getElementById('domainInput').value = restoredSettings.domainInput ?? '';
+                document.getElementById('dateRange').value = restoredSettings.dateRange ?? '90';
+                document.getElementById('brandInput').value = restoredSettings.brandInput ?? '';
+                brandMode = restoredSettings.brandMode || 'all';
+                viewMode = restoredSettings.viewMode || 'keyword';
+                if (restoredSettings.settings) settings = restoredSettings.settings;
+
+                document.querySelectorAll('.brand-mode-btn').forEach(btn => {
+                    const active = btn.getAttribute('data-brandmode') === brandMode;
+                    btn.classList.toggle('bg-primary', active);
+                    btn.classList.toggle('text-white', active);
+                    btn.classList.toggle('bg-panel', !active);
+                    btn.classList.toggle('text-ink-soft', !active);
+                });
+            }
+
+            let restoredData = null;
+            let restoredHasPageData = true;
+            try {
+                const rawData = localStorage.getItem(STORAGE_KEYS.data);
+                if (rawData) restoredData = JSON.parse(rawData);
+                const rawHasPageData = localStorage.getItem(STORAGE_KEYS.hasPageData);
+                if (rawHasPageData !== null) restoredHasPageData = JSON.parse(rawHasPageData);
+            } catch (err) { console.warn('Could not read saved dataset:', err); }
+
+            if (restoredData && restoredData.length) {
+                globalData = restoredData;
+                hasPageData = restoredHasPageData;
+                const domainContainer = document.getElementById('domainContainer');
+                const pageInput = document.getElementById('pageInput');
+                const pageViewBtn = document.getElementById('pageViewBtn');
+                if (!hasPageData) {
+                    domainContainer.classList.remove('hidden');
+                    pageInput.disabled = true;
+                    pageInput.classList.add('bg-panel', 'cursor-not-allowed');
+                    pageViewBtn.disabled = true;
+                    pageViewBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    viewMode = 'keyword';
+                }
+                document.querySelectorAll('.view-mode-btn').forEach(btn => {
+                    const active = btn.getAttribute('data-viewmode') === viewMode;
+                    btn.classList.toggle('bg-primary', active);
+                    btn.classList.toggle('text-white', active);
+                    btn.classList.toggle('bg-paper', !active);
+                    btn.classList.toggle('text-ink-soft', !active);
+                });
+                renderTable();
+            }
+        }
+
+        document.getElementById('clearSavedBtn').addEventListener('click', function() {
+            if (!confirm('Clear the CSV and filters saved in this browser? This cannot be undone.')) return;
+            try {
+                localStorage.removeItem(STORAGE_KEYS.data);
+                localStorage.removeItem(STORAGE_KEYS.settings);
+                localStorage.removeItem(STORAGE_KEYS.hasPageData);
+            } catch (err) { console.warn('Could not clear local storage:', err); }
+            location.reload();
+        });
+
+        // --- Event Listeners ---
         document.getElementById('minPos').addEventListener('input', renderTable);
         document.getElementById('maxPos').addEventListener('input', renderTable);
         document.getElementById('minImp').addEventListener('input', renderTable);
@@ -782,6 +1203,7 @@
         document.getElementById('pageInput').addEventListener('input', renderTable);
         document.getElementById('domainInput').addEventListener('input', renderTable);
         document.getElementById('dateRange').addEventListener('change', renderTable);
+        document.getElementById('brandInput').addEventListener('input', renderTable);
 
         document.addEventListener('DOMContentLoaded', function () {
             var footerYearEl = document.getElementById('footerYear');
@@ -803,6 +1225,8 @@
                     btn.setAttribute('aria-expanded', isOpen);
                 });
             });
+
+            restoreFromStorage();
         });
     </script>
 </body>
