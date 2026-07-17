@@ -1173,6 +1173,18 @@
                     pageViewBtn.disabled = true;
                     pageViewBtn.classList.add('opacity-50', 'cursor-not-allowed');
                     viewMode = 'keyword';
+                } else {
+                    // Was previously stuck disabled forever on reload if an earlier
+                    // session had uploaded a page-less export \u2014 this restores the
+                    // filter/button to a usable state whenever the restored dataset
+                    // actually does have page data, mirroring processData()'s logic.
+                    domainContainer.classList.add('hidden');
+                    pageInput.disabled = false;
+                    pageInput.placeholder = "e.g. '/blog/'...";
+                    pageInput.classList.remove('bg-panel', 'cursor-not-allowed');
+                    pageViewBtn.disabled = false;
+                    pageViewBtn.title = '';
+                    pageViewBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
                 document.querySelectorAll('.view-mode-btn').forEach(btn => {
                     const active = btn.getAttribute('data-viewmode') === viewMode;
